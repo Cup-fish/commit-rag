@@ -11,7 +11,6 @@
  *   config.ts     — Configuration management (§3.7)
  *
  * Coming later:
- *   prompt.ts     — Prompt construction (§3.5, Day 3)
  *   llm.ts        — DeepSeek generation (§3.6, Day 4)
  */
 
@@ -30,6 +29,10 @@ export type { IndexEntry, BuildIndexOptions } from "./indexer";
 // Retrieval
 export { retrieve, retrieveBestMessage, cosineSimilarity } from "./retrieve";
 export type { RetrieveResult } from "./retrieve";
+
+// Prompt
+export { buildPrompt, estimateTokens, estimateMessageTokens } from "./prompt";
+export type { ChatMessage, PromptOptions } from "./prompt";
 
 // Config
 export { loadConfig, loadDefaultConfig } from "./config";

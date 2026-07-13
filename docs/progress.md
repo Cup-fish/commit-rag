@@ -102,3 +102,45 @@
 
 ---
 <!-- 后续 Day 3-7 将在推进时追加 -->
+
+### Day 3（2026-07-13）：Prompt 构造 + 单元测试
+
+**完成内容**：
+
+- `packages/core/src/prompt.ts`：Prompt 构造模块
+  - `buildPrompt()` — 组装 system + user 消息，返回 OpenAI 兼容格式
+  - 系统提示词精心调校：
+    - 定义 Conventional Commits 格式（`<type>(<scope>): <subject>` + 可选正文）
+    - 约束：subject ≤72 字符、祈使语气、不加句号
+    - **核心差异点**：明确指示模型"从下面的历史例子里学习这个项目自己的 type/scope 命名习惯，不要套用通用规范"——这就是 RAG 相对于直接 prompt 提供价值的机制
+  - Few-shot 格式化：每条历史 commit 显示 hash、message、相似度分数、截断后的 diff
+  - 冷启动兜底（设计文档 §6 风险点 2）：无历史时退化为标准 Conventional Commits + 建议常用 type
+  - 大 diff 截断（设计文档 §6 风险点 1）：超阈值时退化为"文件列表+增删统计+前几百行内容"
+  - Few-shot diff 截断：每条示例 diff 按字符数裁剪，避免示例段把整个 prompt 撑爆
+  - `estimateTokens()` / `estimateMessageTokens()` — 粗略 token 估算（~3.5 字符/token），用于预算告警
+
+**验证结果**：
+
+- 22/22 单元测试全部通过，覆盖 8 个测试组：
+  - 系统提示词内容检查（Conventional Commits 格式、项目风格学习指令、格式规则）
+  - Few-shot 格式化（示例数量、相似度分数、hash+message+diff 完整性、maxExamples 限制）
+  - 冷启动（空检索结果 → 友好提示 + 兜底规则）
+  - Diff 截断（短 diff 原文保留、大 diff 摘要化、空暂存区占位文本）
+  - 示例 diff 截断（超长示例裁剪 + 截断标记）
+  - 输出结构（始终 2 条消息、system+user 角色正确、包含当前 diff）
+  - Token 估算（合理范围、消息开销、内容长度正相关）
+  - 集成测试：使用 Day 2 真实 `RetrieveResult` 数据格式验证兼容性
+
+- 典型 prompt token 预算：约 700 tokens（系统提示 ~1400 字符 + 用户消息含 2 个示例 ~1000 字符）
+
+**技术决策**：
+
+| 决策 | 理由 |
+|------|------|
+| 系统提示用英文 | DeepSeek 对英文指令遵循度更好；commit message 本身可能是中文，但指令用英文更稳定 |
+| 冷启动给具体 type 建议 | 设计文档 §6 风险 2 — 不能只给空规则，要给可用模板 |
+| 3.5 字符/token 粗略估算 | MVP 不需要 tiktoken 精确度，误差在可接受范围内 |
+| 当前 diff 截断阈值 300 行（比索引的 500 行更严） | prompt 的 token 预算比 embedding 更敏感 |
+| 示例 diff 按字符截断（非行） | 字符数是 token 的直接代理，比行数更精确控制预算 |
+
+**已知问题**：无。
