@@ -13,5 +13,8 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Secrets (API keys — NEVER commit)
+.env
+
 # Project-specific
 .commit-rag/
