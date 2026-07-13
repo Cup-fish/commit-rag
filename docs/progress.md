@@ -40,6 +40,55 @@
 
 ---
 
+### Day 4（2026-07-13）：DeepSeek 生成接入 + 端到端流水线
+
+**完成内容**：
+
+- `packages/core/src/llm.ts`：LLM 生成模块
+  - `generateCommitMessage()` — 调 DeepSeek API（OpenAI 兼容 `/v1/chat/completions`）
+  - 默认 `deepseek-chat`，temperature=0.3（按设计文档 §3.6）
+  - max_tokens=500（commit message 不会很长）
+  - **完善的错误分类**，每种失败都有可操作的解决步骤：
+    - `401` → key 无效/过期 → 检查环境变量 + 获取 key 的 URL
+    - `403` → 权限不足 → 检查账户 access level
+    - `429` → 限流 → 等待 + 检查 rate limit tier + 充值建议
+    - `500/502/503/504` → 服务端故障 → 检查 status.deepseek.com
+    - Network error → 网络/防火墙/DNS 诊断步骤
+    - Empty response / missing content → 详细的响应内容 dump
+  - 返回 `GenerationResult`：message + usage（token 统计）+ model
+
+- 端到端流水线首次跑通：
+  ```
+  staged diff → Qwen embedding → cosine retrieve → 
+  buildPrompt → DeepSeek generate → commit message
+  ```
+
+**验证结果**：
+
+- Phase 1（错误处理）：4/4 通过
+  - 空 key / 无效 key（真实 401）/ 网络不通（bogus host）/ undefined key
+  - 每个错误都包含具体状态码 + 可操作的解决步骤 + 相关 URL
+
+- Phase 2（端到端流水线）：3/3 通过
+  - RAG 模式：`fix: add @types/node dependency and rebuild core package`
+    - 成功复刻了项目自己的 `fix:` type 约定
+  - 冷启动模式：`docs: add design document and Claude settings`
+    - 无历史示例时退化为标准 Conventional Commits
+  - Temperature=0.0：输出确定，证明低温调参有效
+  - Token 用量：3845 prompt + 11 completion ≈ ¥0.004/次（近乎免费）
+
+**技术决策**：
+
+| 决策 | 理由 |
+|------|------|
+| 不用 OpenAI SDK，直接用 fetch | 减少依赖；DeepSeek 兼容层只是一个 POST，不需要 SDK 的重量 |
+| 错误消息包含具体 URL | 设计文档 §3.6 要求"清晰的报错而不是静默失败"——给用户指明下一步该去哪 |
+| 返回 token usage | 方便后续做成本追踪和 prompt 优化 |
+| Temperature 默认 0.3 | 设计文档 §3.6 指定，commit message 要稳定不跑偏 |
+
+**已知问题**：
+- Token 估算（3.5 字符/token）偏乐观：实测 10204 字符 → 3845 prompt tokens，实际比例约 2.65 字符/token。差异来自 diff 中的特殊字符（`+`、`-`、`@`）密度高。影响很小（估算误差不影响功能，只是预算告警可能略晚触发），后续可调整为 2.8。
+
 ### Day 2（2026-07-13）：Embedding 接入 + 索引流水线
 
 **完成内容**：

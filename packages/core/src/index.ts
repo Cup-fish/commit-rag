@@ -8,10 +8,9 @@
  *   embedding.ts  — Embedding provider abstraction (§3.2)
  *   indexer.ts    — Indexing pipeline (§3.3)
  *   retrieve.ts   — Retrieval with cosine similarity (§3.4)
+ *   prompt.ts     — Prompt construction (§3.5)
+ *   llm.ts        — DeepSeek generation (§3.6)
  *   config.ts     — Configuration management (§3.7)
- *
- * Coming later:
- *   llm.ts        — DeepSeek generation (§3.6, Day 4)
  */
 
 // Git
@@ -33,6 +32,10 @@ export type { RetrieveResult } from "./retrieve";
 // Prompt
 export { buildPrompt, estimateTokens, estimateMessageTokens } from "./prompt";
 export type { ChatMessage, PromptOptions } from "./prompt";
+
+// LLM
+export { generateCommitMessage } from "./llm";
+export type { LlmOptions, LlmUsage, GenerationResult } from "./llm";
 
 // Config
 export { loadConfig, loadDefaultConfig } from "./config";
