@@ -5,12 +5,25 @@
   "private": true,
   "description": "Generate commit messages from staged diffs, powered by RAG over your repo's own commit history.",
   "publisher": "commit-rag",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/commit-rag/commit-rag"
+  },
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
     "SCM Providers",
     "Other"
+  ],
+  "keywords": [
+    "commit",
+    "message",
+    "ai",
+    "rag",
+    "git"
   ],
   "activationEvents": [
     "onStartupFinished"
@@ -20,9 +33,27 @@
     "commands": [
       {
         "command": "commit-rag.generateMessage",
-        "title": "commit-rag: Generate Commit Message"
+        "title": "Generate AI Commit Message",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "commit-rag.reindex",
+        "title": "commit-rag: Rebuild Commit Index"
+      },
+      {
+        "command": "commit-rag.configureKeys",
+        "title": "commit-rag: Configure API Keys"
       }
-    ]
+    ],
+    "menus": {
+      "scm/title": [
+        {
+          "command": "commit-rag.generateMessage",
+          "when": "scmProvider == git",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "build": "tsc",
@@ -34,6 +65,7 @@
     "@commit-rag/core": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^26.1.1",
     "@types/vscode": "^1.85.0",
     "rimraf": "^5.0.0",
     "typescript": "^5.5.0"

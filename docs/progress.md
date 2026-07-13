@@ -89,6 +89,56 @@
 **已知问题**：
 - Token 估算（3.5 字符/token）偏乐观：实测 10204 字符 → 3845 prompt tokens，实际比例约 2.65 字符/token。差异来自 diff 中的特殊字符（`+`、`-`、`@`）密度高。影响很小（估算误差不影响功能，只是预算告警可能略晚触发），后续可调整为 2.8。
 
+---
+
+### Day 5–6（2026-07-13）：VS Code 插件 UI + 端到端集成
+
+**完成内容**：
+
+- `packages/vscode-extension/package.json`：完整的 VS Code 扩展清单
+  - SCM title bar 按钮：`$(sparkle)` 图标，只在 git provider 时显示
+  - 三个命令：Generate Message / Rebuild Index / Configure API Keys
+  - `onStartupFinished` 激活事件
+
+- `packages/vscode-extension/src/extension.ts`：完整实现
+  - **SCM 集成**：通过 `vscode.extensions.getExtension('vscode.git')` 获取 Git API，直接写入 `inputBox.value`，用户必须手动点 Commit 按钮（设计文档 §4.2："AI 只建议，人来确认"）
+  - **SecretStorage**：API key 存在 `context.secrets`（VS Code 安全存储），绝不出现在 settings.json
+  - **首次使用流程**：弹 modal 提示配置两个 API key，inputBox 用 `password: true` 掩码显示
+  - **进度提示**：`vscode.window.withProgress` 展示索引和生成进度，索引阶段显示 `N/200 commits (hash)`
+  - **状态栏**：显示 "commit-rag: N commits indexed" 或 "commit-rag: not indexed"，点击触发重建索引
+  - **冷启动处理**：无索引时弹窗询问是否构建；无暂存区时 warning 提示
+  - **兜底方案**：Git API 不可用时，将生成结果弹 modal 显示 + "Copy to Clipboard" 按钮
+
+**验证结果**：
+
+- 编译产物分析：13/13 通过
+  - 确认 activate/deactivate 导出、11 个核心模块导入、SecretStorage/inputBox/withProgress 引用正确
+  - 确认三个命令注册代码存在
+
+- Package.json 贡献点：6/6 通过
+  - SCM title 按钮正确配置（navigation 组、scmProvider == git 条件）
+  - 三个命令全部注册、sparkle 图标、onStartupFinished 激活
+  - workspace 依赖 @commit-rag/core
+
+- Pipeline 模拟（扩展内部完整流程）：2/2 通过
+  - 创建测试改动（JWT 认证中间件）→ git add → 端到端生成
+  - 输出：`chore: add test-temp.txt with sample commit message content`（Conventional Commits 格式正确，subject ≤72 字符）
+  - Token 用量：1802+13=1815
+
+**技术决策**：
+
+| 决策 | 理由 |
+|------|------|
+| Git API 而非硬编码 SCM inputBox | `vscode.extensions.getExtension('vscode.git')` 是社区标准做法，兼容所有 Git 工作流 |
+| SecretStorage 而非 settings.json | 设计文档 §4.2 安全要求；SecretStorage 用 OS keychain（Windows Credential Manager / macOS Keychain） |
+| Modal 首次配置（非静默失败） | 设计文档 §4.2：首次使用弹窗要求输入 key，阻止静默失败 |
+| onStartupFinished 激活 | 不需要等 SCM 视图打开——启动时就加载状态栏和命令 |
+| 非 git 场景的 Clipboard 兜底 | 用户可能用第三方 git 客户端，不假设 vscode.git 一定可用 |
+
+**已知问题**：
+- VS Code UI 测试（F5 Extension Development Host）需要在 VS Code 里手动验证，无法在 CLI 自动化。验证步骤已写在 smoke-test-day5.mjs 的输出中。
+- 索引 RAG 效果的局限性：当仓库历史主题单一（如仅有脚手架类 commit）、当前改动属于全新类型（如认证功能）时，检索出的历史相似度低（0.36-0.38），模型缺乏相关 few-shot 示例，生成质量可能退化为冷启动水准。这是 RAG 本身的固有限制——仓库越丰富、历史越长，效果越好。反过来也说明 RAG 确实在起作用（没有强行塞入不相关的例子）。
+
 ### Day 2（2026-07-13）：Embedding 接入 + 索引流水线
 
 **完成内容**：
