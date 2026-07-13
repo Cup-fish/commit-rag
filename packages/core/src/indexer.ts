@@ -14,6 +14,7 @@ import type { EmbeddingProvider } from "./embedding";
 import type { CommitEntry } from "./git";
 import { getCommitHistory, getCommitDiff } from "./git";
 import type { CommitRagConfig } from "./config";
+import { parseDiff } from "./diff";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,49 +66,18 @@ function summarizeDiff(diff: string, maxLines: number): string {
   const lines = diff.split("\n");
   if (lines.length <= maxLines) return diff;
 
-  // Extract file-level summaries
-  const fileHeaders: string[] = [];
-  const fileStats: Array<{ file: string; adds: number; dels: number }> = [];
-  let currentFile = "";
+  const { stats, structuralLines } = parseDiff(diff);
 
-  for (const line of lines) {
-    // git diff file headers: "diff --git a/... b/..."
-    const diffMatch = /^diff --git a\/(.*) b\/(.*)/.exec(line);
-    if (diffMatch) {
-      currentFile = diffMatch[2] || diffMatch[1];
-      fileHeaders.push(line);
-      fileStats.push({ file: currentFile, adds: 0, dels: 0 });
-      continue;
-    }
-
-    // Track per-file stats
-    if (currentFile && fileStats.length > 0) {
-      const last = fileStats[fileStats.length - 1];
-      if (/^\+[^+]/.test(line)) last.adds++;
-      else if (/^-[^-]/.test(line)) last.dels++;
-    }
-
-    // Collect other structural lines (---/+++ headers, hunk headers)
-    if (
-      /^--- (a\/)?/.test(line) ||
-      /^\+\+\+ (b\/)?/.test(line) ||
-      /^@@ /.test(line)
-    ) {
-      fileHeaders.push(line);
-    }
-  }
-
-  // Build summary
   const parts: string[] = [
     `# Diff summary (${lines.length} total lines, summarised to avoid token blowout)`,
     "",
     "## Changed files",
-    ...fileStats.map(
+    ...stats.map(
       (s) => `  ${s.file}  (+${s.adds} -${s.dels})`,
     ),
     "",
     "## Diff headers",
-    ...fileHeaders.slice(0, 200), // cap structural lines too
+    ...structuralLines.slice(0, 200), // cap structural lines too
     "",
     "## Diff content (first portion)",
     ...lines.slice(0, Math.min(100, lines.length)),
@@ -207,6 +177,15 @@ export async function buildIndex(
 
   // 3. Embed all diffs in one batch (embedder handles internal batching)
   const vectors = await embedder.embed(diffTexts);
+
+  // Safety: ensure embedder returned the expected number of vectors
+  if (vectors.length !== entries.length) {
+    throw new Error(
+      `Embedding mismatch: ${entries.length} commits but ` +
+        `embedder returned ${vectors.length} vectors. ` +
+        `The embedder must return exactly one vector per input text.`,
+    );
+  }
 
   // 4. Combine
   const result: IndexEntry[] = entries.map((entry, idx) => ({

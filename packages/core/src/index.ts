@@ -6,6 +6,7 @@
  * Exports (by design-doc module):
  *   git.ts        — Git interface layer (§3.1)
  *   embedding.ts  — Embedding provider abstraction (§3.2)
+ *   diff.ts       — Shared diff parsing utilities
  *   indexer.ts    — Indexing pipeline (§3.3)
  *   retrieve.ts   — Retrieval with cosine similarity (§3.4)
  *   prompt.ts     — Prompt construction (§3.5)

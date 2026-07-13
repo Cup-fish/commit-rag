@@ -13,6 +13,7 @@
  */
 
 import type { RetrieveResult } from "./retrieve";
+import { parseDiff } from "./diff";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -107,32 +108,14 @@ function truncateCurrentDiff(diff: string, maxLines: number): string {
   const lines = diff.split("\n");
   if (lines.length <= maxLines) return diff;
 
-  // Collect file-level stats
-  const fileStats: Array<{ file: string; adds: number; dels: number }> = [];
-  let currentFile = "";
-
-  for (const line of lines) {
-    const dm = /^diff --git a\/(.*) b\/(.*)/.exec(line);
-    if (dm) {
-      currentFile = dm[2] || dm[1];
-      fileStats.push({ file: currentFile, adds: 0, dels: 0 });
-      continue;
-    }
-    if (currentFile && fileStats.length > 0) {
-      const last = fileStats[fileStats.length - 1];
-      if (/^\+[^+]/.test(line)) last.adds++;
-      else if (/^-[^-]/.test(line)) last.dels++;
-    }
-  }
-
-  const headerLines = Math.min(300, Math.floor(maxLines * 0.3));
+  const { stats } = parseDiff(diff);
   const contentLines = Math.min(200, Math.floor(maxLines * 0.7));
 
   const parts: string[] = [
     `[Diff truncated: ${lines.length} total lines → summary + first ${contentLines} lines of content]`,
     "",
     "## Changed files",
-    ...fileStats.map((s) => `  ${s.file}  (+${s.adds} −${s.dels})`),
+    ...stats.map((s) => `  ${s.file}  (+${s.adds} −${s.dels})`),
     "",
     "## Diff (first portion)",
     ...lines.slice(0, contentLines),

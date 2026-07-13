@@ -10,7 +10,6 @@
     "type": "git",
     "url": "https://github.com/commit-rag/commit-rag"
   },
-  "icon": "icon.png",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -57,9 +56,10 @@
   },
   "scripts": {
     "build": "tsc",
+    "bundle": "node esbuild.config.mjs",
     "clean": "rimraf dist",
     "dev": "tsc --watch",
-    "package": "vsce package"
+    "package": "node esbuild.config.mjs && vsce package --no-dependencies && tsc"
   },
   "dependencies": {
     "@commit-rag/core": "workspace:*"
@@ -67,6 +67,7 @@
   "devDependencies": {
     "@types/node": "^26.1.1",
     "@types/vscode": "^1.85.0",
+    "esbuild": "^0.28.1",
     "rimraf": "^5.0.0",
     "typescript": "^5.5.0"
   }

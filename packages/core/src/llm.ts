@@ -151,7 +151,7 @@ export async function generateCommitMessage(
     throw new Error(
       "DeepSeek API key is not configured.\n\n" +
         "Please set the COMMIT_RAG_DEEPSEEK_API_KEY environment variable, " +
-        "or configure it in your VS Code settings (coming in Day 5-6).\n" +
+        "or configure it via the 'commit-rag: Configure API Keys' command in VS Code.\n" +
         "Get a key at: https://platform.deepseek.com/api_keys",
     );
   }

@@ -79,11 +79,6 @@ function defaults(): CommitRagConfig {
 // Loaders
 // ---------------------------------------------------------------------------
 
-/** Deep-clone via JSON. Safe for our plain-data config objects. */
-function clone<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj)) as T;
-}
-
 /**
  * Read a `.commitragrc.json` file if present and merge into config.
  */

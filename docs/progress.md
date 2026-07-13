@@ -139,6 +139,54 @@
 - VS Code UI 测试（F5 Extension Development Host）需要在 VS Code 里手动验证，无法在 CLI 自动化。验证步骤已写在 smoke-test-day5.mjs 的输出中。
 - 索引 RAG 效果的局限性：当仓库历史主题单一（如仅有脚手架类 commit）、当前改动属于全新类型（如认证功能）时，检索出的历史相似度低（0.36-0.38），模型缺乏相关 few-shot 示例，生成质量可能退化为冷启动水准。这是 RAG 本身的固有限制——仓库越丰富、历史越长，效果越好。反过来也说明 RAG 确实在起作用（没有强行塞入不相关的例子）。
 
+---
+
+### Day 7（2026-07-13）：打磨 / Code Review / README / 打包
+
+**完成内容**：
+
+- **Code Review & 重构**：
+  - 提取共享 diff 解析工具：创建 `packages/core/src/diff.ts`（`parseDiff()`）
+  - `indexer.ts` 和 `prompt.ts` 不再各自实现 diff 解析，共用 `diff.ts`
+  - 删除 `config.ts` 中未使用的 `clone()` 函数（死代码）
+  - 删除 `prompt.ts` 中计算了但从未使用的 `headerLines` 变量（死代码）
+  - 修正 `llm.ts` 中过期的 "coming in Day 5-6" 提示（改为实际的 VS Code 命令名）
+  - `indexer.ts` `buildIndex()` 增加向量数量安全检查：embedder 返回数 ≠ 输入数时直接抛错
+  - 回归测试 22/22 通过，确认重构无破坏
+
+- **README.md**：完整的项目说明文档
+  - 为什么 RAG（核心差异化点）
+  - 架构图（core ↔ vscode-extension）
+  - Quick Start（安装、构建、F5 调试）
+  - CLI 使用示例（完整 7 步 pipeline 代码）
+  - 项目结构表
+  - 配置说明（API key 存储、`.commitragrc.json` 格式）
+  - 开发指南（运行 smoke test）
+
+- **ARCHITECTURE.md**：7 条架构决策记录（面试复习素材）
+  - ADR-1：为什么用 RAG 而不是直接 prompt
+  - ADR-2：为什么 embedding 用 Qwen 而不是本地模型
+  - ADR-3：为什么核心引擎和 IDE 插件要分离
+  - ADR-4：为什么用 execFile 而不是 exec（安全）
+  - ADR-5：为什么 MVP 不用向量数据库
+  - ADR-6：为什么只填输入框不自动提交
+  - ADR-7：为什么 API key 存在 SecretStorage 而不是 settings.json
+
+- **VSIX 打包**：
+  - 解决 pnpm workspace + vsce 不兼容问题：用 esbuild 将 `@commit-rag/core` 内联到 `dist/extension.js`
+  - 打包流程：`tsc` → `esbuild bundle` → `vsce package` → `tsc`（恢复 dev 版）
+  - 最终产物：`commit-rag-vscode-0.0.0.vsix`（13KB，4 个文件）
+  - Dev 版 extension.js 在打包后自动恢复（F5 调试不受影响）
+
+**验证结果**：
+
+- Code Review 回归测试：22/22 通过
+- VSIX 打包验证：生成干净的 13KB .vsix，文件清单确认无误
+
+**已知问题**：
+- `vsce package` 报 LICENSE 警告（缺少 LICENSE 文件）——不影响功能
+- pnpm + vsce 的 npm 依赖解析不兼容需要 esbuild workaround —— 这是工具链层面的已知限制，CI/CD 场景不受影响（CI 可以用 `--no-dependencies` + esbuild）
+
 ### Day 2（2026-07-13）：Embedding 接入 + 索引流水线
 
 **完成内容**：
