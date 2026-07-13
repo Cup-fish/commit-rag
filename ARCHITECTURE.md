@@ -9,7 +9,7 @@
 
 **日期**：2026-07-13
 **状态**：已采纳
-
+我是好人
 ### 背景
 
 最 naive 的做法是把 `git diff` 直接丢给 DeepSeek："写一条 commit message"。但这样生成的结果是**通用**的——LLM 会按照它训练数据里的 Conventional Commits 规范来写，而不是你这个项目自己的规范。
