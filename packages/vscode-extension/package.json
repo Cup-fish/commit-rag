@@ -1,0 +1,41 @@
+{
+  "name": "commit-rag-vscode",
+  "displayName": "commit-rag: AI Commit Message Generator",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Generate commit messages from staged diffs, powered by RAG over your repo's own commit history.",
+  "publisher": "commit-rag",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "commit-rag.generateMessage",
+        "title": "commit-rag: Generate Commit Message"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist",
+    "dev": "tsc --watch",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "@commit-rag/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.5.0"
+  }
+}

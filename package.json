@@ -1,0 +1,16 @@
+{
+  "name": "commit-rag",
+  "version": "0.0.0",
+  "private": true,
+  "description": "AI-powered commit message generator using RAG over git history",
+  "scripts": {
+    "build": "pnpm --recursive build",
+    "build:core": "pnpm --filter @commit-rag/core build",
+    "clean": "pnpm --recursive clean",
+    "lint": "pnpm --recursive lint",
+    "test": "pnpm --recursive test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

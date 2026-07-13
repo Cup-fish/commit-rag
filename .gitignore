@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.vscode-test/
+*.vsix
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
+.commit-rag/
