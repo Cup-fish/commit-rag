@@ -12,6 +12,8 @@ indexes your repo's commit history, retrieves the most similar past commits to
 your current change, and uses them as few-shot examples — so the generated
 message matches **your project's conventions**, not generic best practices.
 
+![Screenshot of commit-rag in VS Code](./docs/assets/screenshot.png)
+
 ---
 
 ## Why RAG?
