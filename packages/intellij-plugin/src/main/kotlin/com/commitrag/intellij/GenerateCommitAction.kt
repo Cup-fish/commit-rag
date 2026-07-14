@@ -13,8 +13,8 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vcs.CheckinProjectPanel
 import com.intellij.openapi.vcs.VcsDataKeys
+import com.intellij.vcs.commit.AbstractCommitWorkflowHandler
 
 /**
  * Action that appears as a button in the VCS commit dialog ("Generate Commit (RAG)").
@@ -38,21 +38,30 @@ class GenerateCommitAction : AnAction(), DumbAware {
     }
 
     override fun actionPerformed(e: AnActionEvent) {
-        val project = e.project ?: return
-        val panel = getCheckinPanel(e) ?: return
-        val settings = service<CommitRagSettings>()
-        val repoPath = project.basePath ?: return
+        val project = e.project!!
+        val commitHandler: AbstractCommitWorkflowHandler<*, *>
+        val settings: CommitRagSettings
+        val repoPath: String
 
-        // Quick pre-check: is Node.js available?
-        val nodeCheck = CommitRagService.checkNode()
-        if (!nodeCheck.available) {
-            showNodeError(project, nodeCheck.error ?: "Node.js not available")
-            return
-        }
+        try {
+            commitHandler = getCommitHandler(e)!!
+            settings = service()
+            repoPath = project.basePath!!
 
-        // First-use check: are API keys configured anywhere?
-        if (!settings.hasBothKeysConfigured()) {
-            showFirstUsePrompt(project)
+            // Quick pre-check: is Node.js available?
+            val nodeCheck = CommitRagService.checkNode()
+            if (!nodeCheck.available) {
+                showNodeError(project, nodeCheck.error ?: "Node.js not available")
+                return
+            }
+
+            // First-use check: are API keys configured anywhere?
+            if (!settings.hasBothKeysConfigured()) {
+                showFirstUsePrompt(project)
+                return
+            }
+        } catch (ex: Exception) {
+            showUnexpectedError(project, "Pre-check failed", ex)
             return
         }
 
@@ -78,7 +87,7 @@ class GenerateCommitAction : AnAction(), DumbAware {
 
                     // Set the commit message on the EDT (UI thread)
                     ApplicationManager.getApplication().invokeLater {
-                        panel.setCommitMessage(result.message)
+                        commitHandler.setCommitMessage(result.message)
                         showSuccessNotification(project, result)
                     }
 
@@ -106,11 +115,11 @@ class GenerateCommitAction : AnAction(), DumbAware {
     // -----------------------------------------------------------------------
 
     /**
-     * Extract the [CheckinProjectPanel] from the action event.
+     * Extract the [AbstractCommitWorkflowHandler] from the action event.
+     * Works with IntelliJ 2024.2+ new Commit UI.
      */
-    private fun getCheckinPanel(e: AnActionEvent): CheckinProjectPanel? {
-        val handler = e.getData(VcsDataKeys.COMMIT_WORKFLOW_HANDLER) ?: return null
-        return if (handler is CheckinProjectPanel) handler else null
+    private fun getCommitHandler(e: AnActionEvent): AbstractCommitWorkflowHandler<*, *>? {
+        return e.getData(VcsDataKeys.COMMIT_WORKFLOW_HANDLER) as? AbstractCommitWorkflowHandler<*, *>
     }
 
     /**
@@ -152,6 +161,19 @@ class GenerateCommitAction : AnAction(), DumbAware {
             }
         )
         note.notify(project)
+    }
+
+    private fun showUnexpectedError(project: Project, context: String, ex: Exception) {
+        NotificationGroupManager.getInstance()
+            .getNotificationGroup("com.commitrag.notifications")
+            .createNotification(
+                "commit-rag: $context",
+                "${ex.javaClass.simpleName}: ${ex.message}\n\n" +
+                    "This is an unexpected error. Please report it at " +
+                    "https://github.com/commit-rag/commit-rag/issues",
+                NotificationType.ERROR,
+            )
+            .notify(project)
     }
 
     private fun showNodeError(project: Project, error: String) {
