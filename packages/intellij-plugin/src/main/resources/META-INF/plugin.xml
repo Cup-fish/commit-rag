@@ -1,0 +1,52 @@
+<idea-plugin>
+    <id>com.commitrag.intellij</id>
+    <name>commit-rag</name>
+    <vendor email="" url="https://github.com/commit-rag">commit-rag</vendor>
+
+    <description>AI-powered commit message generator using RAG over git history.</description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>Git4Idea</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService
+            serviceImplementation="com.commitrag.intellij.CommitRagSettings"/>
+
+        <applicationConfigurable
+            parentId="tools"
+            instance="com.commitrag.intellij.CommitRagSettingsConfigurable"
+            id="com.commitrag.intellij.settings"
+            displayName="commit-rag"/>
+
+        <notificationGroup
+            id="com.commitrag.notifications"
+            displayType="BALLOON"/>
+
+        <postStartupActivity
+            implementation="com.commitrag.intellij.NodeStartupCheck"/>
+    </extensions>
+
+    <actions>
+        <action
+                id="CommitRag.Generate"
+                text="Generate Commit (RAG)"
+                description="Generate commit message using RAG over git history"
+                icon="AllIcons.Actions.Refresh"
+                class="com.commitrag.intellij.GenerateCommitAction">
+            <add-to-group group-id="Vcs.MessageActionGroup" anchor="last"/>
+            <keyboard-shortcut
+                    keymap="$default"
+                    first-keystroke="control alt G"/>
+        </action>
+
+        <action
+                id="CommitRag.BuildIndex"
+                text="Build RAG Index"
+                description="Build the commit-rag RAG index from git history"
+                icon="AllIcons.Actions.Download"
+                class="com.commitrag.intellij.BuildIndexAction">
+            <add-to-group group-id="Vcs.MessageActionGroup" anchor="last"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

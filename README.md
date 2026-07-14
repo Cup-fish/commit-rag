@@ -4,8 +4,10 @@
 > commit history** via Retrieval-Augmented Generation (RAG).
 
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.85%2B-blue?logo=visual-studio-code)](https://code.visualstudio.com/)
+[![IntelliJ](https://img.shields.io/badge/IntelliJ-2024.2%2B-087CFA?logo=intellij-idea)](https://www.jetbrains.com/idea/)
 [![Node](https://img.shields.io/badge/Node-18%2B-green?logo=node.js)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5%2B-3178c6?logo=typescript)](https://www.typescriptlang.org/)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.0%2B-7F52FF?logo=kotlin)](https://kotlinlang.org/)
 
 Instead of generating generic commit messages from a static prompt, commit-rag
 indexes your repo's commit history, retrieves the most similar past commits to
@@ -39,18 +41,25 @@ search — but applied to the commit message problem.
 │       @commit-rag/core           │  ← IDE-independent engine (TypeScript)
 │  git · diff · embedding · index  │
 │  retrieve · prompt · llm · config│
+│  cli.ts (CLI entry point)        │
 └────────────┬─────────────────────┘
              │
-  ┌──────────▼──────────┐
-  │  VS Code Extension   │  ← Phase 1 (this repo)
-  │  SCM button · Secret │
-  │  Storage · progress  │
-  └──────────────────────┘
+   ┌─────────┴─────────┐
+   ▼                   ▼
+┌──────────────┐  ┌──────────────────┐
+│ VS Code      │  │ IntelliJ / IDEs  │
+│ Extension    │  │ Plugin (Kotlin)  │
+│ (Phase 1)    │  │ (Phase 2)        │
+│              │  │                  │
+│ import core  │  │ ProcessBuilder   │
+│ as library   │  │ → CLI subprocess │
+└──────────────┘  └──────────────────┘
 ```
 
-The core engine has **no VS Code dependency** — it's a plain TypeScript library.
-The VS Code extension is a thin UI layer that imports it. This means the same
-engine can be used for a JetBrains plugin, a CLI tool, or a GitHub Action.
+The core engine has **no IDE dependency** — it's a plain TypeScript library
+with an optional CLI. The VS Code extension imports it directly; the JetBrains
+plugin calls the CLI via subprocess. The same engine can also be used for a
+GitHub Action or standalone CLI tool.
 
 Read [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full design rationale.
 
@@ -90,6 +99,34 @@ cd packages/vscode-extension
 pnpm package    # produces commit-rag-vscode-0.0.0.vsix
 ```
 
+### JetBrains Plugin (IntelliJ / WebStorm / Android Studio / ...)
+
+**Prerequisites**: JDK 21 + Gradle 8.x (wrapper included in repo).
+
+```bash
+# 1. Build the plugin
+cd packages/intellij-plugin
+./gradlew buildPlugin    # produces build/distributions/commit-rag-intellij-plugin-0.1.0.zip
+
+# 2. Install in your IDE
+#    Settings > Plugins > ⚙ > Install Plugin from Disk...
+#    Select the .zip file and restart the IDE.
+```
+
+**First use**:
+1. Open any git repository
+2. Open the Commit dialog (Ctrl+K / Cmd+K)
+3. If keys are not configured, a notification will guide you to
+   **Settings > Tools > commit-rag** to enter API keys
+   (stored in your OS keychain via PasswordSafe)
+4. Click **Build RAG Index** to index your commit history (once per repo)
+5. Stage changes, click **Generate Commit (RAG)** (Ctrl+Alt+G)
+6. Review the message → Commit
+
+The index file (`.commit-rag/index.json`) is **shared between IDEs** —
+if you already built the index via the VS Code extension, the JetBrains
+plugin will find and reuse it automatically.
+
 ### CLI / Core Library
 
 ```typescript
@@ -127,7 +164,7 @@ console.log(result.message);
 ```
 commit-rag/
 ├── packages/
-│   ├── core/                     # @commit-rag/core
+│   ├── core/                     # @commit-rag/core (TypeScript)
 │   │   └── src/
 │   │       ├── git.ts            # Git interface (execFile, not exec)
 │   │       ├── embedding.ts      # EmbeddingProvider + Qwen/DashScope
@@ -137,19 +174,24 @@ commit-rag/
 │   │       ├── prompt.ts         # System + few-shot prompt construction
 │   │       ├── llm.ts            # DeepSeek API (OpenAI-compatible)
 │   │       ├── config.ts         # Layered config (defaults → rc → env)
+│   │       ├── cli.ts            # CLI entry point (for JetBrains subprocess)
 │   │       └── index.ts          # Public barrel export
-│   └── vscode-extension/         # VS Code extension
-│       └── src/
-│           └── extension.ts      # SCM button, SecretStorage, progress
+│   ├── vscode-extension/         # VS Code extension (Phase 1)
+│   │   └── src/
+│   │       └── extension.ts      # SCM button, SecretStorage, progress
+│   └── intellij-plugin/          # JetBrains plugin (Phase 2)
+│       └── src/main/kotlin/com/commitrag/intellij/
+│           ├── GenerateCommitAction.kt   # VCS commit panel button
+│           ├── BuildIndexAction.kt       # Build RAG index from IDE
+│           ├── CommitRagService.kt       # CLI subprocess + JSON parse
+│           ├── CommitRagSettings.kt      # PasswordSafe + settings UI
+│           └── NodeStartupCheck.kt       # Node.js detection at startup
 ├── scripts/                      # Day-by-day smoke tests
-│   ├── smoke-test.mjs            # Day 1: git
-│   ├── smoke-test-day2.mjs       # Day 2: embedding + index + retrieve
-│   ├── smoke-test-day3.mjs       # Day 3: prompt (22 unit tests)
-│   ├── smoke-test-day4.mjs       # Day 4: LLM + error handling
-│   └── smoke-test-day5.mjs       # Day 5-6: extension + pipeline
 ├── docs/
 │   ├── design.md                 # Original design document
+│   ├── commit-rag-design-plan.md # Implementation plan
 │   └── progress.md               # Day-by-day progress journal
+├── ARCHITECTURE.md               # Architecture Decision Records
 ├── tsconfig.base.json
 ├── pnpm-workspace.yaml
 └── package.json
@@ -161,12 +203,14 @@ commit-rag/
 
 ### API Keys
 
-API keys are **never** stored in files. They are loaded from:
+API keys are **never** stored in plain-text files. They are loaded from:
 
-1. **VS Code SecretStorage** (the extension) — stored in your OS keychain
-2. **Environment variables** (CLI usage):
+1. **Environment variables** (highest precedence, works with all clients):
    - `COMMIT_RAG_DASHSCOPE_API_KEY` — DashScope / Qwen embedding
    - `COMMIT_RAG_DEEPSEEK_API_KEY` — DeepSeek LLM
+2. **VS Code SecretStorage** (VS Code extension) — OS keychain
+3. **IntelliJ PasswordSafe** (JetBrains plugin) — OS keychain
+   (Settings > Tools > commit-rag)
 
 ### Repository Settings
 
@@ -194,10 +238,17 @@ Create a `.commitragrc.json` in your repo root (all fields optional):
 ## Development
 
 ```bash
+# TypeScript (core + VS Code extension)
 pnpm install          # Install all workspace dependencies
 pnpm build            # Build all packages
 pnpm --filter @commit-rag/core build    # Build only core
 pnpm --filter commit-rag-vscode build   # Build only extension
+
+# Kotlin (JetBrains plugin)
+cd packages/intellij-plugin
+./gradlew build       # Compile + test
+./gradlew test        # Run tests only
+./gradlew buildPlugin # Build distributable .zip
 ```
 
 Run the smoke tests:
@@ -230,7 +281,8 @@ COMMIT_RAG_DASHSCOPE_API_KEY=sk-... COMMIT_RAG_DEEPSEEK_API_KEY=sk-... \
 | LLM | DeepSeek (deepseek-chat) | Strong code understanding, OpenAI-compatible, affordable |
 | Vector search | Brute-force cosine similarity | < 1000 entries, < 1ms per query |
 | VS Code integration | Extension API + Git API | Native SCM button, SecretStorage, withProgress |
-| Build | pnpm workspace + TypeScript 5.5 | Monorepo, strict mode, ES2022 target |
+| JetBrains integration | IntelliJ Platform Plugin (Kotlin) | VCS commit panel button, PasswordSafe, ProcessBuilder |
+| Build | pnpm workspace + Gradle | Monorepo (TS + Kotlin), strict mode, ES2022 target |
 
 ---
 

@@ -5,6 +5,9 @@
   "description": "IDE-independent core engine for commit-rag: git, indexing, retrieval, prompt, LLM",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "commit-rag-cli": "./dist/cli.js"
+  },
   "scripts": {
     "build": "tsc",
     "clean": "rimraf dist",
