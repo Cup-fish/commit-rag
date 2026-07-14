@@ -237,7 +237,9 @@ async function cmdGenerate(repoPath: string): Promise<never> {
   );
 
   // 7. Build prompt
-  const messages = buildPrompt(stagedDiff, retrieved);
+  const messages = buildPrompt(stagedDiff, retrieved, {
+    language: config.language.preferred,
+  });
 
   // 8. Generate commit message via DeepSeek
   const result = await generateCommitMessage(messages, {

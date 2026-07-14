@@ -51,6 +51,16 @@ export interface CommitRagConfig {
     /** DeepSeek LLM model name (Day 4+). */
     llmModel: string;
   };
+
+  /** Commit message language preference. */
+  language: {
+    /**
+     * "auto" = follow the project's historical commit language
+     * "zh"   = Chinese
+     * "en"   = English
+     */
+    preferred: "auto" | "zh" | "en";
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -71,6 +81,9 @@ function defaults(): CommitRagConfig {
       embeddingModel: "text-embedding-v4",
       embeddingDimensions: 1024,
       llmModel: "deepseek-chat",
+    },
+    language: {
+      preferred: "auto",
     },
   };
 }
@@ -108,6 +121,12 @@ function applyRcFile(config: CommitRagConfig, repoRoot: string): void {
     if (typeof mdl.embeddingModel === "string") config.model.embeddingModel = mdl.embeddingModel;
     if (typeof mdl.embeddingDimensions === "number") config.model.embeddingDimensions = mdl.embeddingDimensions;
     if (typeof mdl.llmModel === "string") config.model.llmModel = mdl.llmModel;
+  }
+  if (typeof r.language === "object" && r.language !== null) {
+    const lang = r.language as Record<string, unknown>;
+    if (lang.preferred === "auto" || lang.preferred === "zh" || lang.preferred === "en") {
+      config.language.preferred = lang.preferred;
+    }
   }
   // Note: apiKeys in rc file are intentionally ignored — see §3.7
 }
@@ -152,6 +171,11 @@ function applyEnvOverrides(config: CommitRagConfig): void {
 
   if (env.COMMIT_RAG_LLM_MODEL) {
     config.model.llmModel = env.COMMIT_RAG_LLM_MODEL;
+  }
+
+  const lang = env.COMMIT_RAG_LANGUAGE;
+  if (lang === "auto" || lang === "zh" || lang === "en") {
+    config.language.preferred = lang;
   }
 }
 

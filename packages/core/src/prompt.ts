@@ -45,6 +45,14 @@ export interface PromptOptions {
    * Default: 5 (matches default topK).
    */
   maxExamples?: number;
+
+  /**
+   * Preferred commit message language.
+   * "auto" = follow the project's historical commits (default)
+   * "zh"   = Chinese
+   * "en"   = English
+   */
+  language?: "auto" | "zh" | "en";
 }
 
 // ---------------------------------------------------------------------------
@@ -77,7 +85,7 @@ Use the Conventional Commits specification:
 
 - **Subject line**: ≤72 characters, imperative mood ("add" not "added"), no trailing period.
 - **Body** (optional): only if the change is complex enough to need explanation. Explain WHAT changed and WHY. Wrap at 72 characters.
-- **Language**: match the language of this project's existing commits. If the project uses English, write in English; if Chinese, write in Chinese; if mixed, follow the dominant pattern.
+- **Language**: {{LANGUAGE_RULE}}
 
 ## Learning the project's conventions (CRITICAL)
 
@@ -168,8 +176,15 @@ export function buildPrompt(
   const maxExamples = options.maxExamples ?? 5;
 
   // ---- System message ----
+  const language = options.language ?? "auto";
+  const languageRule = language === "zh"
+    ? "Write commit messages in Chinese (中文). Use Chinese for the subject line and body."
+    : language === "en"
+    ? "Write commit messages in English."
+    : "Match the language of this project's existing commits. If the project uses English, write in English; if Chinese, write in Chinese; if mixed, follow the dominant pattern.";
+
   const messages: ChatMessage[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: SYSTEM_PROMPT.replace("{{LANGUAGE_RULE}}", languageRule) },
   ];
 
   // ---- User message ----
